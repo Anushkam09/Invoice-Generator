@@ -107,53 +107,6 @@ class Email:
         )
         return
 
-class BillTemplate:
-    def __init__(self, tax_percent):
-        self.tax = tax_percent/100
-
-    def create_bill(self, details):
-        invoice_number = details[0]
-        client_name = details[1]
-        client_email = details[2]
-        invoice_date = details[3]
-        due_date = details[4]
-        product = details[5]
-        quantity = details[6]
-        rate = details[7]
-        payment_mode = details[8]
-        billing_address = details[9]
-        shipping_address = details[10]
-
-        subtotal = int(quantity) * int(rate)
-        total_tax = subtotal*self.tax
-        total = subtotal + total_tax
-
-        print(f"""
------------------------------------
-Invoice Number:    {invoice_number}
-Invoice Date:      {invoice_date.strftime('%d-%m-%Y')}
-Client Name:       {client_name}
-Client Email:      {client_email}
-Billing Address:   {billing_address}
-Shipping Address:  {shipping_address}
-
------------------------------------
-Product \t Quantity \t Rate
------------------------------------
-{product} \t {quantity} \t\t {rate}
-
------------------------------------
------------------------------------
-Subtotal: \t {subtotal}
-GST ({self.tax*100}%) \t {total_tax}
------------------------------------
-Grand Total: \t {total}
-
------------------------------------
-Due Date: \t {due_date.strftime('%d-%m-%Y')}
-Payment Mode: \t {payment_mode}
------------------------------------""")
-
 class InvoiceGenerator:
     def __init__(self, file_name, tax_percent, invoice_template, invoice_folder):
         self.file_path = f"./{file_name}"
@@ -164,7 +117,6 @@ class InvoiceGenerator:
     def main(self):
         load_dotenv()
         excel_work = Excel(self.file_path)
-        make_bills = BillTemplate(self.tax)
         invoice_generator = Invoice(self.invoice_template, self.invoice_folder)
         data_formatter = DataFormat()
         email = Email()
@@ -172,7 +124,6 @@ class InvoiceGenerator:
         #row1: header, start from row 2
         for i in range(2, total_invoices + 2):
             details = excel_work.read_from_file(i)
-            # make_bills.create_bill(details)
             data = data_formatter.format_data(details)
             file_path, invoice_num, name, mail_id = invoice_generator.generate_invoices(data)
             email.send_mail(file_path, invoice_num, name, mail_id)
