@@ -46,7 +46,7 @@ GMAIL_PASSWORD=your_app_password
 invoice-generator/
 │
 ├── invoice_details.xlsx         # Excel with invoice data
-├── invoice-practice.docx
+├── invoice-basic.docx
 ├── invoices/                    # Folder to save generated PDFs
 ├── .env                         # Email credentials
 ├── requirements.txt             # Dependencies
