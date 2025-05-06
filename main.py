@@ -102,6 +102,7 @@ class Invoice:
         template.save(docx_path)
         convert(docx_path, pdf_path)
         os.remove(docx_path)
+        return pdf_path
 
     
 class DataFormat:
