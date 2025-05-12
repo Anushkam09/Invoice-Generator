@@ -9,6 +9,8 @@ This project automatically generates professional invoices using data from an Ex
 - Read invoice data from Excel
 - Fill placeholders in a Word template with invoice details
 - Email the generated invoice to the client
+- Allows multiple products per invoice
+- Uses professional looking template
 
 ---
 
@@ -67,8 +69,7 @@ Invoices will be generated and emailed one by one based on the Excel file rows.
 
 ## 🚧 Work in Progress
 
-* ✅ Use better designed invoice templates (with tables, styled layout)
-* ⏳ Support for multiple products per invoice
+* ⏳ Allow personalized templates
 * ⏳ Add a web interface using Flask or Streamlit
 * ⏳ Add logs, error handling, and email status tracking
 * ⏳ Export invoice history to a separate Excel/CSV file
