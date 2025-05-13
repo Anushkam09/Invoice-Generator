@@ -83,6 +83,12 @@ class Invoice:
                         elif paragraph.text.strip() == "TAX":
                             next_cell = row.cells[-1]
                             next_cell.text = str(data["total_tax"])
+                        elif paragraph.text.strip() == "SHIPPING & HANDLING":
+                            next_cell = row.cells[-1]
+                            next_cell.text = str(data["shipping_charges"])
+                        elif paragraph.text.strip() == "DISCOUNT":
+                            next_cell = row.cells[-1]
+                            next_cell.text = str(data["discount"])
                         elif paragraph.text.strip() == "GRAND TOTAL":
                             next_cell = row.cells[-1]
                             next_cell.text = str(data["total"])
@@ -100,49 +106,60 @@ class Invoice:
         return pdf_path
     
 class DataFormat:
-    def __init__(self, tax_percent, data_headers):
+    def __init__(self, tax_percent, data_headers,min_discount_amount,discount_percent):
         self.tax = tax_percent / 100
-        #need to add code/ function to get data dictionary acc to headers input by the user
+        self.min_discount_amount = min_discount_amount
+        self.discount = discount_percent/100
         self.invoice_list = set()
         self.invoices = {}
     
-    def read_invoices(self,details):
-        if details[0] not in self.invoice_list:
-            data = self.format_data(details)
-            self.invoices[details[0]] = data
-            self.invoice_list.add(details[0])
+    def read_invoices(self, details):
+        invoice_id = details[0]
+
+        item_subtotal = int(details[6]) * int(details[7])
+        item_tax = item_subtotal * self.tax
+        shipping = int(details[11])
+
+        if invoice_id not in self.invoice_list:
+            data = {
+                "client_name": details[1],
+                "client_email": details[2],
+                "invoice_date": details[3].strftime('%d-%m-%Y'),
+                "due_date": details[4].strftime('%d-%m-%Y'),
+                "items": [{
+                    "product": details[5],
+                    "quantity": details[6],
+                    "rate": details[7]
+                }],
+                "payment_mode": details[8],
+                "billing_address": details[9],
+                "shipping_address": details[10],
+                "shipping_charges": shipping,
+                "subtotal": item_subtotal,
+                "total_tax": item_tax
+            }
+
+            self.invoices[invoice_id] = data
+            self.invoice_list.add(invoice_id)
         else:
-            more_data = self.format_data(details)
-            self.invoices[details[0]]["items"].append(more_data["items"][0])
-            self.invoices[details[0]]["subtotal"] += more_data["subtotal"]
-            self.invoices[details[0]]["total_tax"] += more_data["total_tax"]
-            self.invoices[details[0]]["total"] += more_data["total"]
-        return
+            self.invoices[invoice_id]["items"].append({
+                "product": details[5],
+                "quantity": details[6],
+                "rate": details[7]
+            })
+            self.invoices[invoice_id]["subtotal"] += item_subtotal
+            self.invoices[invoice_id]["total_tax"] += item_tax
+            self.invoices[invoice_id]["shipping_charges"] += shipping
 
-    def format_data(self, details):
-        data = {
-            "client_name": details[1],
-            "client_email": details[2],
-            "invoice_date": details[3].strftime('%d-%m-%Y'),
-            "due_date": details[4].strftime('%d-%m-%Y'),
-            "items":[{
-            "product": details[5],
-            "quantity": details[6],
-            "rate": details[7],
-            }],
-            "payment_mode": details[8],
-            "billing_address": details[9],
-            "shipping_address": details[10]
-        }
+        invoice = self.invoices[invoice_id]
+        total = invoice["subtotal"] + invoice["total_tax"] + invoice["shipping_charges"]
+        discount = 0
+        if total >= self.min_discount_amount:
+            discount = total * self.discount
+            total -= discount
+        invoice["discount"] = discount
+        invoice["total"] = total
 
-        subtotal = int(details[6]) * int(details[7])
-        total_tax = subtotal * self.tax
-        total = subtotal + total_tax
-
-        data["subtotal"] = subtotal
-        data["total_tax"] = total_tax
-        data["total"] = total
-        return data
 
 class Email:
     def __init__(self):
@@ -175,11 +192,13 @@ class Email:
         )
 
 class InvoiceGenerator:
-    def __init__(self, file_name, tax_percent, invoice_template, invoice_folder):
+    def __init__(self, file_name, tax_percent, invoice_template, invoice_folder,min_discount_amount,discount_percent):
         self.file_path = os.path.join(".", file_name)
         self.tax = tax_percent
         self.invoice_template = invoice_template
         self.invoice_folder = invoice_folder
+        self.min_discount_amount = min_discount_amount
+        self.discount_percent = discount_percent
 
     def main(self):
         load_dotenv()
@@ -189,7 +208,7 @@ class InvoiceGenerator:
         invoice_generator = Invoice(self.invoice_template, self.invoice_folder)
         email = Email()
         
-        data_formatter = DataFormat(self.tax, headers)
+        data_formatter = DataFormat(self.tax, headers,self.min_discount_amount, self.discount_percent)
 
         total_invoices = excel_work.get_total_rows()
 
@@ -202,5 +221,5 @@ class InvoiceGenerator:
             email.send_mail(file_path, invoice_num, data["client_name"], data["client_email"])
 
 if __name__ == "__main__":
-    invoice = InvoiceGenerator("invoice_details.xlsx", 10, "invoice-basic.docx", "invoices")
+    invoice = InvoiceGenerator("invoice_details.xlsx", 10, "invoice-basic.docx", "invoices", 2000,5)
     invoice.main()
