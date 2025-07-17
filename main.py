@@ -4,6 +4,7 @@ from docx import Document
 from docx2pdf import convert
 from RPA.Email.ImapSmtp import ImapSmtp
 from dotenv import load_dotenv
+from docx.shared import Pt
 
 class Excel:
     def __init__(self, file_path):
@@ -30,26 +31,24 @@ class Invoice:
     def generate_invoices(self, invoice_num, data):
         data["invoice_number"] = invoice_num
         template = Document(self.invoice_template)
-        for p in template.paragraphs:
-            full_text = "".join(run.text for run in p.runs)
-            new_text = full_text
-            for key, value in data.items():
-                new_text = new_text.replace(f"[{key}]", str(value))
-            if new_text != full_text:
-                p.clear()
-                p.add_run(new_text)
 
         for table in template.tables:
             for row in table.rows:
                 for cell in row.cells:
                     for para in cell.paragraphs:
-                        full_text = "".join(run.text for run in para.runs)
+                        full_text = "".join(run.text for run in para.runs).strip()
                         new_text = full_text
                         for key, value in data.items():
                             new_text = new_text.replace(f"[{key}]", str(value))
                         if new_text != full_text:
                             para.clear()
-                            para.add_run(new_text)
+                            run = para.add_run(new_text)
+                            if "[company_name]" in full_text:
+                                run.bold = True
+                                run.font.size = Pt(20)
+                            elif full_text in ["[client_name]","[invoice_number]", "[shipped_to_client]"]:
+                                run.bold = True
+
         
         for table in template.tables:
             if len(table.columns) == 4 and table.cell(0, 0).text.strip().upper() == "DESCRIPTION":
@@ -106,7 +105,10 @@ class Invoice:
         return pdf_path
     
 class DataFormat:
-    def __init__(self, tax_percent, data_headers,min_discount_amount,discount_percent):
+    def __init__(self, company_name, address, contact, tax_percent, data_headers,min_discount_amount,discount_percent):
+        self.company_name = company_name
+        self.address = address
+        self.contact = contact
         self.tax = tax_percent / 100
         self.min_discount_amount = min_discount_amount
         self.discount = discount_percent/100
@@ -122,7 +124,11 @@ class DataFormat:
 
         if invoice_id not in self.invoice_list:
             data = {
+                "company_name": self.company_name,
+                "address" : self.address,
+                "contact": self.contact,
                 "client_name": details[1],
+                "shipped_to_client": details[12],
                 "client_email": details[2],
                 "invoice_date": details[3].strftime('%d-%m-%Y'),
                 "due_date": details[4].strftime('%d-%m-%Y'),
@@ -192,7 +198,10 @@ class Email:
         )
 
 class InvoiceGenerator:
-    def __init__(self, file_name, tax_percent, invoice_template, invoice_folder,min_discount_amount,discount_percent):
+    def __init__(self, company_name, address, contact, file_name, tax_percent, invoice_template, invoice_folder,min_discount_amount,discount_percent):
+        self.company_name = company_name
+        self.address = address
+        self.contact = contact
         self.file_path = os.path.join(".", file_name)
         self.tax = tax_percent
         self.invoice_template = invoice_template
@@ -208,10 +217,11 @@ class InvoiceGenerator:
         invoice_generator = Invoice(self.invoice_template, self.invoice_folder)
         email = Email()
         
-        data_formatter = DataFormat(self.tax, headers,self.min_discount_amount, self.discount_percent)
+        data_formatter = DataFormat(self.company_name, self.address, self.contact, self.tax, headers,self.min_discount_amount, self.discount_percent)
 
         total_invoices = excel_work.get_total_rows()
 
+        # for i in range(2, 10):
         for i in range(2, total_invoices + 2):
             details = excel_work.read_from_file(i)
             data_formatter.read_invoices(details)
@@ -219,7 +229,13 @@ class InvoiceGenerator:
         for invoice_num,data in data_formatter.invoices.items():
             file_path = invoice_generator.generate_invoices(invoice_num, data)
             email.send_mail(file_path, invoice_num, data["client_name"], data["client_email"])
+            print(file_path)
 
 if __name__ == "__main__":
-    invoice = InvoiceGenerator("invoice_details.xlsx", 10, "invoice-basic.docx", "invoices", 2000,5)
+    company_name = input("Enter name of your company: ")
+    line1 = input("Enter address line 1: ")
+    line2 = input("Enter address line 2: ")
+    address = f"{line1} \n{line2}"
+    contact = input("Enter contact number: ")
+    invoice = InvoiceGenerator(company_name, address, contact, "invoice_details.xlsx", 10, "invoice-basic.docx", "invoices", 2000,5)
     invoice.main()
