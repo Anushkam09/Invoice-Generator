@@ -120,7 +120,7 @@ class DataFormat:
 
         item_subtotal = int(details[6]) * int(details[7])
         item_tax = item_subtotal * self.tax
-        shipping = int(details[11])
+        shipping = int(details[12])
 
         if invoice_id not in self.invoice_list:
             data = {
@@ -128,7 +128,7 @@ class DataFormat:
                 "address" : self.address,
                 "contact": self.contact,
                 "client_name": details[1],
-                "shipped_to_client": details[12],
+                "shipped_to_client": details[10],
                 "client_email": details[2],
                 "invoice_date": details[3].strftime('%d-%m-%Y'),
                 "due_date": details[4].strftime('%d-%m-%Y'),
@@ -139,7 +139,8 @@ class DataFormat:
                 }],
                 "payment_mode": details[8],
                 "billing_address": details[9],
-                "shipping_address": details[10],
+                "shipping_address": details[11],
+                "extra_remarks": details[13],
                 "shipping_charges": shipping,
                 "subtotal": item_subtotal,
                 "total_tax": item_tax
@@ -163,7 +164,7 @@ class DataFormat:
         if total >= self.min_discount_amount:
             discount = total * self.discount
             total -= discount
-        invoice["discount"] = discount
+        invoice["discount"] = round(discount, 2)
         invoice["total"] = total
 
 
@@ -221,8 +222,8 @@ class InvoiceGenerator:
 
         total_invoices = excel_work.get_total_rows()
 
-        # for i in range(2, 10):
-        for i in range(2, total_invoices + 2):
+        for i in range(2, 20):
+        # for i in range(2, total_invoices + 2):
             details = excel_work.read_from_file(i)
             data_formatter.read_invoices(details)
         
