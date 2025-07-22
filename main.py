@@ -36,7 +36,7 @@ class Invoice:
             for row in table.rows:
                 for cell in row.cells:
                     for para in cell.paragraphs:
-                        full_text = "".join(run.text for run in para.runs).strip()
+                        full_text = "".join(run.text for run in para.runs).strip().lower()
                         new_text = full_text
                         for key, value in data.items():
                             new_text = new_text.replace(f"[{key}]", str(value))
@@ -45,11 +45,10 @@ class Invoice:
                             run = para.add_run(new_text)
                             if "[company_name]" in full_text:
                                 run.bold = True
-                                run.font.size = Pt(20)
+                                run.font.size = Pt(30)
                             elif full_text in ["[client_name]","[invoice_number]", "[shipped_to_client]"]:
                                 run.bold = True
 
-        
         for table in template.tables:
             if len(table.columns) == 4 and table.cell(0, 0).text.strip().upper() == "DESCRIPTION":
                 if len(table.rows) > 1:
@@ -71,7 +70,7 @@ class Invoice:
                 row_to_remove = table.rows[row]._tr
                 table._tbl.remove(row_to_remove)
                 break
-        
+
         for table in template.tables:
             for row in table.rows:
                 for i, cell in enumerate(row.cells):
@@ -92,7 +91,6 @@ class Invoice:
                             next_cell = row.cells[-1]
                             next_cell.text = str(data["total"])
 
-            
         # Save the edited document
         # check if invoice is good after multiple elements
         file_name = os.path.join(self.invoice_folder, data["invoice_number"])
@@ -238,5 +236,9 @@ if __name__ == "__main__":
     line2 = input("Enter address line 2: ")
     address = f"{line1} \n{line2}"
     contact = input("Enter contact number: ")
-    invoice = InvoiceGenerator(company_name, address, contact, "invoice_details.xlsx", 10, "invoice-basic.docx", "invoices", 2000,5)
+    while True:
+        template = int(input("Enter if you want invoice 1 or 2: "))
+        if template == 1 or template == 2:
+            break
+    invoice = InvoiceGenerator(company_name, address, contact, "invoice_details.xlsx", 10, f"invoice-{template}.docx", "invoices", 2000,5)
     invoice.main()
